@@ -59,4 +59,5 @@ jobs:
           gh release create "$tag" \
             --title "$tag" \
             --generate-notes \
-            main.js manifest.json styles.css fontawesome.css
+            main.js manifest.json styles.css fontawesome.css \
+            packs/logos.json packs/lucide.json packs/clarity.json packs/phosphor.json

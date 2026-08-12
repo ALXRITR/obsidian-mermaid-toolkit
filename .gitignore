@@ -22,3 +22,5 @@ Thumbs.db
 *.swo
 
 .claude
+# Generated icon pack assets (copied from node_modules at build time)
+packs/

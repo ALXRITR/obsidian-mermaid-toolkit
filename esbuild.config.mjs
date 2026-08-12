@@ -1,6 +1,36 @@
 import esbuild from "esbuild";
 import process from "process";
 import builtins from "builtin-modules";
+import fs from "fs";
+import path from "path";
+
+// Iconify sets ship as JSON assets in packs/ instead of being bundled: as
+// object literals they added ~13 MB to main.js that Obsidian parses at every
+// start. The file name is the token prefix used in diagrams, which may differ
+// from the set's own iconify prefix (ph -> `phosphor:van`).
+const ICON_PACKS = {
+	logos: "@iconify-json/logos/icons.json",
+	lucide: "@iconify-json/lucide/icons.json",
+	clarity: "@iconify-json/clarity/icons.json",
+	phosphor: "@iconify-json/ph/icons.json",
+};
+
+function copyIconPacks() {
+	fs.mkdirSync("packs", { recursive: true });
+	for (const [name, mod] of Object.entries(ICON_PACKS)) {
+		const src = path.join("node_modules", mod);
+		if (!fs.existsSync(src)) {
+			console.warn(`icon pack missing, skipped: ${src}`);
+			continue;
+		}
+		const out = path.join("packs", `${name}.json`);
+		fs.copyFileSync(src, out);
+		const kb = (fs.statSync(out).size / 1024).toFixed(0);
+		console.log(`icon pack: ${out} (${kb} KB)`);
+	}
+}
+
+copyIconPacks();
 
 const banner =
 `/*

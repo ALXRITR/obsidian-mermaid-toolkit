@@ -14,23 +14,35 @@ function inModal(el: Element): boolean {
 // When a node surface is dark, force white label text - inline !important
 // beats the theme's colour rules and survives modal clones and export
 // serialisation. Same YIQ threshold as the uvitas-charts datalabels.
-function isDarkFill(color: string): boolean {
+export function isDarkFill(color: string): boolean {
 	const c = color.trim().toLowerCase();
 	if (!c || c === "none" || c === "transparent") return false;
 	let r: number, g: number, b: number;
-	const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(c);
-	const rgb = /^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(c);
+	let a = 1;
+	const hex = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/.exec(c);
+	// Alpha matters: `fill:transparent` computes to rgba(0, 0, 0, 0), which read
+	// as plain rgb is pure black - every transparent node counted as a dark
+	// surface and got its labels forced to white (invisible on a light canvas).
+	// A see-through node has no surface of its own, so its label keeps the
+	// colour the diagram gave it.
+	const rgb =
+		/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?/.exec(c);
 	if (hex) {
 		let h = hex[1];
-		if (h.length === 3) h = h.split("").map((x) => x + x).join("");
+		if (h.length <= 4) h = h.split("").map((x) => x + x).join("");
 		r = parseInt(h.slice(0, 2), 16);
 		g = parseInt(h.slice(2, 4), 16);
 		b = parseInt(h.slice(4, 6), 16);
+		if (h.length === 8) a = parseInt(h.slice(6, 8), 16) / 255;
 	} else if (rgb) {
 		r = +rgb[1]; g = +rgb[2]; b = +rgb[3];
+		if (rgb[4] !== undefined) {
+			a = rgb[4].endsWith("%") ? parseFloat(rgb[4]) / 100 : parseFloat(rgb[4]);
+		}
 	} else {
 		return false;
 	}
+	if (!isFinite(a) || a < 0.5) return false;
 	return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.55;
 }
 

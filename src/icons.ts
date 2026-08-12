@@ -6,9 +6,6 @@ import {
 	normalizePath,
 	Notice,
 } from "obsidian";
-import { icons as logos } from "@iconify-json/logos";
-import { icons as lucide } from "@iconify-json/lucide";
-import { icons as clarity } from "@iconify-json/clarity";
 import type { MermaidToolkitSettings } from "./settings";
 
 export interface IconifyIcon {
@@ -19,22 +16,36 @@ export interface IconifyIcon {
 	top?: number;
 }
 
+export interface IconifyAlias {
+	parent: string;
+	rotate?: number;
+	hFlip?: boolean;
+	vFlip?: boolean;
+}
+
 export interface IconifyJSON {
 	prefix: string;
 	icons: Record<string, IconifyIcon>;
+	aliases?: Record<string, IconifyAlias>;
 	width?: number;
 	height?: number;
 }
 
 interface Mermaid {
-	registerIconPacks: (packs: { name: string; icons: unknown }[]) => void;
+	registerIconPacks: (
+		packs: Array<
+			| { name: string; icons: unknown }
+			| { name: string; loader: () => Promise<unknown> }
+		>,
+	) => void;
 }
 
-const BundledPacks: Array<{ name: string; icons: IconifyJSON }> = [
-	{ name: logos.prefix, icons: logos as unknown as IconifyJSON },
-	{ name: lucide.prefix, icons: lucide as unknown as IconifyJSON },
-	{ name: clarity.prefix, icons: clarity as unknown as IconifyJSON },
-];
+// Iconify packs ship as JSON assets in `packs/` next to main.js instead of
+// being bundled into it. Bundled, the four sets are ~13 MB of object literals
+// that Obsidian parses at EVERY start - even in vaults that never use an icon.
+// Read on demand they cost nothing until a diagram actually names one.
+// The folder name is the token prefix: `phosphor:van` -> packs/phosphor.json.
+const LAZY_PACK_NAMES = ["logos", "lucide", "clarity", "phosphor"];
 
 export function setSvg(el: HTMLElement, svgString: string) {
 	const parser = new DOMParser();
@@ -51,26 +62,134 @@ export function setSvg(el: HTMLElement, svgString: string) {
 export class IconManager {
 	private readonly app: App;
 	private readonly getSettings: () => MermaidToolkitSettings;
+	private readonly pluginDir: string;
+	// Called once a lazily-loaded pack becomes available, so labels that were
+	// left as plain text can be re-rendered.
+	private readonly onPacksChanged: () => void;
 	private customPacks: Array<{ name: string; icons: IconifyJSON }> = [];
+	private lazyPacks = new Map<string, IconifyJSON>();
+	private lazyLoading = new Map<string, Promise<void>>();
+	private lazyFailed = new Set<string>();
 
-	constructor(app: App, getSettings: () => MermaidToolkitSettings) {
+	constructor(
+		app: App,
+		getSettings: () => MermaidToolkitSettings,
+		pluginDir: string,
+		onPacksChanged: () => void,
+	) {
 		this.app = app;
 		this.getSettings = getSettings;
+		this.pluginDir = pluginDir;
+		this.onPacksChanged = onPacksChanged;
 	}
 
-	// Bundled packs + user-supplied custom packs.
+	// Custom packs FIRST: a vault pack shadows the shipped set of the same name
+	// icon by icon. `phosphor` is both a folder in the vault (28 hand-picked,
+	// partly renamed SVGs) and the full Phosphor set - the vault wins, so
+	// `phosphor:view-cards` keeps resolving to the local file while
+	// `phosphor:van` falls through to the shipped 9161-icon set.
 	allPacks(): Array<{ name: string; icons: IconifyJSON }> {
-		return [...BundledPacks, ...this.customPacks];
+		return [
+			...this.customPacks,
+			...Array.from(this.lazyPacks, ([name, icons]) => ({ name, icons })),
+		];
 	}
 
-	// Register bundled + custom packs with Mermaid (best-effort). Loading the
-	// full Mermaid library is deferred out of onload by the caller.
+	// Every prefix the token regex must recognise - INCLUDING packs that have
+	// not been read yet, otherwise their tokens would never trigger a load.
+	private knownPrefixes(): string[] {
+		const names = this.customPacks.map((p) => p.name);
+		for (const n of LAZY_PACK_NAMES) if (!names.includes(n)) names.push(n);
+		return names;
+	}
+
+	// --- Lazy pack loading ---
+
+	// Read `packs/<name>.json` from the plugin folder. Concurrent callers share
+	// one in-flight promise; a missing/broken file is remembered so a diagram
+	// full of that prefix does not retry the read on every label.
+	async ensurePack(name: string): Promise<void> {
+		if (this.lazyPacks.has(name) || this.lazyFailed.has(name)) return;
+		if (!LAZY_PACK_NAMES.includes(name)) return;
+		let pending = this.lazyLoading.get(name);
+		if (!pending) {
+			pending = this.readPackFile(name);
+			this.lazyLoading.set(name, pending);
+		}
+		await pending;
+	}
+
+	async ensureAllPacks(): Promise<void> {
+		await Promise.all(LAZY_PACK_NAMES.map((n) => this.ensurePack(n)));
+	}
+
+	private async readPackFile(name: string): Promise<void> {
+		// VAULT FIRST, plugin folder second. The plugin folder is NOT a reliable
+		// home for these files: BRAT installs only main.js/manifest.json/
+		// styles.css, so `packs/` exists solely on the machine that built the
+		// plugin - on every other one the shipped sets silently vanish while the
+		// hand-picked SVG packs (vault) keep working. A copy in the configured
+		// icon-pack folder rides along with whatever syncs the vault and is
+		// therefore the same on all machines.
+		const vaultFolder = normalizePath(this.getSettings().iconPackFolder || "");
+		const candidates = [
+			...(vaultFolder ? [`${vaultFolder}/${name}.json`] : []),
+			`${this.pluginDir}/packs/${name}.json`,
+		];
+		try {
+			const adapter = this.app.vault.adapter;
+			let path = "";
+			for (const c of candidates) {
+				if (await adapter.exists(c)) {
+					path = c;
+					break;
+				}
+			}
+			if (!path) {
+				console.warn(
+					`Mermaid Toolkit: Icon-Pack „${name}" nicht gefunden (gesucht: ${candidates.join(
+						", ",
+					)}). Lege ${name}.json in den Icon-Pack-Ordner, damit es mit dem Vault synchronisiert wird.`,
+				);
+				this.lazyFailed.add(name);
+				return;
+			}
+			const parsed = JSON.parse(await adapter.read(path)) as IconifyJSON;
+			if (!parsed?.icons) {
+				this.lazyFailed.add(name);
+				return;
+			}
+			// The file name is the token prefix (packs/phosphor.json -> `phosphor`),
+			// which may differ from the set's own iconify prefix (`ph`).
+			this.lazyPacks.set(name, { ...parsed, prefix: name });
+			this.onPacksChanged();
+		} catch (e) {
+			console.warn(`Mermaid Toolkit: Icon-Pack „${name}" nicht ladbar`, e);
+			this.lazyFailed.add(name);
+		} finally {
+			this.lazyLoading.delete(name);
+		}
+	}
+
+	// Register custom packs with Mermaid eagerly (they are already in memory)
+	// and the shipped ones through Mermaid's own lazy `loader` hook, so icon
+	// shapes work without ever forcing a 4 MB read. Loading the full Mermaid
+	// library is deferred out of onload by the caller.
 	async registerWithMermaid() {
 		try {
 			const mermaid = (await loadMermaid()) as Mermaid;
-			mermaid.registerIconPacks(
-				this.allPacks().map((p) => ({ name: p.name, icons: p.icons })),
-			);
+			mermaid.registerIconPacks([
+				...this.customPacks.map((p) => ({ name: p.name, icons: p.icons })),
+				...LAZY_PACK_NAMES.filter(
+					(n) => !this.customPacks.some((p) => p.name === n),
+				).map((name) => ({
+					name,
+					loader: async () => {
+						await this.ensurePack(name);
+						return this.lazyPacks.get(name) ?? { prefix: name, icons: {} };
+					},
+				})),
+			]);
 		} catch {
 			/* registration is best-effort */
 		}
@@ -163,6 +282,34 @@ export class IconManager {
 			body += serializer.serializeToString(c);
 		});
 
+		// Only the CHILDREN are serialised, so presentation attributes sitting on
+		// the <svg> root are lost. Icons that colour themselves there (Phosphor
+		// downloads write `<svg fill="currentColor">` rather than putting it on
+		// every path) then fell back to the SVG default - solid black - while
+		// otherwise identical icons rendered in the label colour. Carry those
+		// attributes over on a wrapping <g>: children with their own values still
+		// win, children without one now inherit as they did inside the original.
+		const INHERITED_ATTRS = [
+			"fill",
+			"fill-rule",
+			"fill-opacity",
+			"stroke",
+			"stroke-width",
+			"stroke-linecap",
+			"stroke-linejoin",
+			"stroke-miterlimit",
+			"stroke-dasharray",
+			"stroke-opacity",
+			"clip-rule",
+			"opacity",
+			"color",
+		];
+		const carried = INHERITED_ATTRS.filter((a) => svg.hasAttribute(a)).map(
+			(a) =>
+				`${a}="${(svg.getAttribute(a) ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;")}"`,
+		);
+		if (carried.length > 0) body = `<g ${carried.join(" ")}>${body}</g>`;
+
 		// Single-colour icons -> currentColor, so the colour baked into the <img>
 		// wrapper (navy on default boxes, white on primary) applies to them too.
 		// Multi-colour icons (pictograms/logos) keep their own colours. Ids are
@@ -221,32 +368,54 @@ export class IconManager {
 	getAllIcons(): Array<{ prefix: string; name: string }> {
 		const allIcons: Array<{ prefix: string; name: string }> = [];
 		this.allPacks().forEach((pack) => {
-			Object.keys(pack.icons.icons).forEach((iconName) => {
+			const names = new Set([
+				...Object.keys(pack.icons.icons),
+				...Object.keys(pack.icons.aliases ?? {}),
+			]);
+			names.forEach((iconName) => {
 				allIcons.push({ prefix: pack.name, name: iconName });
 			});
 		});
 		return allIcons;
 	}
 
-	// Find the raw icon data (body/width/height) from the packs by prefix/name.
-	getIconData(prefix: string, name: string) {
-		const pack = this.allPacks().find((p) => p.name === prefix);
-		if (!pack) return null;
-		const icon = pack.icons.icons?.[name];
-		if (!icon) return null;
+	// Resolve a name inside one pack, following iconify aliases. Aliases that
+	// rotate/flip their parent are skipped - rendering the parent unrotated
+	// would silently show the wrong icon.
+	private lookupInPack(pack: IconifyJSON, name: string): IconifyIcon | null {
+		const direct = pack.icons?.[name];
+		if (direct) return direct;
+		const alias = pack.aliases?.[name];
+		if (!alias?.parent) return null;
+		if (alias.rotate || alias.hFlip || alias.vFlip) return null;
+		return pack.icons?.[alias.parent] ?? null;
+	}
 
-		const packIcons = pack.icons;
-		const width = icon.width ?? packIcons.width ?? 0;
-		const height = icon.height ?? packIcons.height ?? 0;
-		return { ...icon, width, height };
+	// Find the raw icon data (body/width/height) by prefix/name. A token whose
+	// pack is known but not read yet kicks off the load and resolves as
+	// "missing" for now - the label stays unsealed and the rescan triggered by
+	// onPacksChanged renders it a moment later.
+	getIconData(prefix: string, name: string) {
+		for (const pack of this.allPacks()) {
+			if (pack.name !== prefix) continue;
+			const icon = this.lookupInPack(pack.icons, name);
+			if (!icon) continue; // shadowing pack lacks it - try the next one
+			const width = icon.width ?? pack.icons.width ?? 0;
+			const height = icon.height ?? pack.icons.height ?? 0;
+			return { ...icon, width, height };
+		}
+		if (LAZY_PACK_NAMES.includes(prefix) && !this.lazyPacks.has(prefix)) {
+			void this.ensurePack(prefix);
+		}
+		return null;
 	}
 
 	// --- Mermaid label icon rendering ---
 
-	// Regex matching `<prefix>:<name>` for every registered icon pack.
+	// Regex matching `<prefix>:<name>` for every known icon pack - loaded or not.
 	iconTokenRegex(): RegExp {
-		const prefixes = this.allPacks()
-			.map((p) => p.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+		const prefixes = this.knownPrefixes()
+			.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
 			.join("|");
 		return new RegExp(`(${prefixes}):([\\w-]+)`, "g");
 	}
