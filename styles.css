@@ -25,10 +25,23 @@
 	width: fit-content !important;
 	max-width: none !important;
 }
+/* The modal selector needs the extra .mermaid-zoom-modal ancestor: the modal
+   wrapper also carries the .mermaid class, so the screen sizing rule
+   ".mermaid svg { max-width: 100% !important }" further down has the same
+   specificity, comes later, and would otherwise shrink the fullscreen SVG to
+   the window width while the fit scale assumes its frozen size. */
 .mermaid-zoom-container.is-engaged .mermaid-zoom-content svg,
-.mermaid-zoom-modal-wrapper svg {
+.mermaid-zoom-modal .mermaid-zoom-modal-wrapper svg {
 	max-width: none !important;
 	max-height: none !important;
+	overflow: visible !important;
+}
+
+/* The fullscreen wrapper also carries the .mermaid class; keep the screen
+   sizing rule ".mermaid { max-width: 100%; overflow: hidden }" further down
+   from clipping it to the window width before the zoom transform applies. */
+.mermaid-zoom-modal .mermaid-zoom-modal-wrapper {
+	max-width: none !important;
 	overflow: visible !important;
 }
 
