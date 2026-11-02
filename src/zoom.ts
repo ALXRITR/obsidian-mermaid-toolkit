@@ -37,6 +37,10 @@ interface SvgBox {
 	height: number;
 }
 
+// Button zoom step. Zoom-out uses the exact reciprocal so that N clicks of "+"
+// followed by N clicks of "-" return to the starting scale.
+const ZOOM_STEP = 1.2;
+
 // The zoom/pan engine ported verbatim from obsidian-mermaid-zoom. It wraps each
 // rendered Mermaid SVG in a container, freezes geometry on first interaction
 // (engage), and drives wheel/pinch/touch zoom plus a fullscreen modal.
@@ -560,14 +564,14 @@ export class ZoomManager {
 		zoomInBtn.textContent = "+";
 		this.styleButton(zoomInBtn);
 		zoomInBtn.addEventListener("click", () =>
-			this.zoom(modalContentWrapper, modalState, 1.2),
+			this.zoom(modalContentWrapper, modalState, ZOOM_STEP),
 		);
 
 		const zoomOutBtn = document.createElement("button");
 		zoomOutBtn.textContent = "-";
 		this.styleButton(zoomOutBtn);
 		zoomOutBtn.addEventListener("click", () =>
-			this.zoom(modalContentWrapper, modalState, 0.8),
+			this.zoom(modalContentWrapper, modalState, 1 / ZOOM_STEP),
 		);
 
 		const resetBtn = document.createElement("button");
@@ -677,7 +681,7 @@ export class ZoomManager {
 		this.styleButton(zoomInBtn);
 		zoomInBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
-			this.zoom(contentWrapper, state, 1.2);
+			this.zoom(contentWrapper, state, ZOOM_STEP);
 		});
 
 		const zoomOutBtn = controls.createEl("button", {
@@ -687,7 +691,7 @@ export class ZoomManager {
 		this.styleButton(zoomOutBtn);
 		zoomOutBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
-			this.zoom(contentWrapper, state, 0.8);
+			this.zoom(contentWrapper, state, 1 / ZOOM_STEP);
 		});
 
 		const resetBtn = controls.createEl("button", {
