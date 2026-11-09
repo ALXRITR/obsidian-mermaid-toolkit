@@ -1,4 +1,4 @@
-# Mermaid Zoom
+# Mermaid Toolkit
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
@@ -17,25 +17,25 @@
 
 ### 方式一：从 GitHub Release 下载（推荐）
 
-1. 访问 [Releases 页面](https://github.com/xiaozhuang0433/mermaid-zoom/releases)
-2. 下载最新版本的 `mermaid-zoom.zip`
-3. 解压到你的库的 plugins 目录：
+1. 访问 [Releases 页面](https://github.com/ALXRITR/obsidian-mermaid-toolkit/releases)
+2. 下载最新版本的 `main.js`、`manifest.json` 和 `styles.css`
+3. 放到你的库的 plugins 目录：
    ```
-   <你的库>/.obsidian/plugins/mermaid-zoom
+   <你的库>/.obsidian/plugins/mermaid-toolkit
    ```
 4. 在 Obsidian 中启用插件：
    - 打开 设置 → 社区插件
-   - 找到 "Mermaid Zoom" 并启用
+   - 找到 "Mermaid Toolkit" 并启用
 
 ### 方式二：手动安装
 
 1. 克隆此仓库到你的库的 plugins 目录：
    ```
-   <你的库>/.obsidian/plugins/mermaid-zoom
+   <你的库>/.obsidian/plugins/mermaid-toolkit
    ```
 2. 安装依赖并构建：
    ```bash
-   cd <你的库>/.obsidian/plugins/mermaid-zoom
+   cd <你的库>/.obsidian/plugins/mermaid-toolkit
    npm install
    npm run build
    ```
@@ -92,5 +92,4 @@ npm run build
 
 ## 支持
 
-- 问题反馈：[GitHub Issues](https://github.com/xiaozhuang0433/mermaid-zoom/issues)
-- 讨论交流：[GitHub Discussions](https://github.com/xiaozhuang0433/mermaid-zoom/discussions)
+- 问题反馈：[GitHub Issues](https://github.com/ALXRITR/obsidian-mermaid-toolkit/issues)

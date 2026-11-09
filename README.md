@@ -5,8 +5,11 @@ pan, icons inside node labels, and a vault-driven theme loader.
 
 > As of v2.0.0 this plugin also absorbs
 > [obsidian-mermaid-icons](https://github.com/ALXRITR/obsidian-mermaid-icons)
-> and gains a theme loader. The manifest `id` stays `obsidian-mermaid-zoom` so
-> the plugin folder, BRAT registration and existing settings keep working.
+> and gains a theme loader. Plugin id: `mermaid-toolkit` (repository
+> [ALXRITR/obsidian-mermaid-toolkit](https://github.com/ALXRITR/obsidian-mermaid-toolkit)).
+> It replaces the former id `obsidian-mermaid-zoom`; settings from the old
+> plugin folder are taken over once on first start, the old folder is left
+> untouched. Disable the old plugin after switching.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
@@ -46,20 +49,23 @@ src/settings.ts   Settings tab + defaults
 
 ## Installation
 
-### Obsidian Plugin Market (Coming Soon)
+### BRAT
 
-Once approved, install directly from Obsidian's community plugins browser.
+1. Install the BRAT plugin.
+2. Add the beta plugin `ALXRITR/obsidian-mermaid-toolkit`.
+3. Enable "Mermaid Toolkit" under Settings → Community Plugins.
 
 ### Manual Installation
 
-1. Download the latest release from [GitHub Releases](https://github.com/xiaozhuang0433/mermaid-zoom/releases)
-2. Extract to your vault's plugins directory:
+1. Download `main.js`, `manifest.json` and `styles.css` of the latest release
+   from [GitHub Releases](https://github.com/ALXRITR/obsidian-mermaid-toolkit/releases)
+2. Put them into your vault's plugins directory:
    ```
-   <your-vault>/.obsidian/plugins/mermaid-zoom
+   <your-vault>/.obsidian/plugins/mermaid-toolkit
    ```
 3. Enable the plugin in Obsidian:
    - Settings → Community Plugins
-   - Find "Mermaid Zoom" and enable it
+   - Find "Mermaid Toolkit" and enable it
 
 ## Usage
 
@@ -109,8 +115,8 @@ Original SVG dimensions are cached to ensure consistent scaling behavior when re
 ## License
 
 [MIT](LICENSE) © [Wang Xiao Zhuang](https://github.com/xiaozhuang0433)
+(original [mermaid-zoom](https://github.com/xiaozhuang0433/mermaid-zoom))
 
 ## Support
 
-- Issues: [GitHub Issues](https://github.com/xiaozhuang0433/mermaid-zoom/issues)
-- Discussions: [GitHub Discussions](https://github.com/xiaozhuang0433/mermaid-zoom/discussions)
+- Issues: [GitHub Issues](https://github.com/ALXRITR/obsidian-mermaid-toolkit/issues)

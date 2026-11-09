@@ -37,7 +37,8 @@ interface SvgBox {
 	height: number;
 }
 
-// The zoom/pan engine ported verbatim from obsidian-mermaid-zoom. It wraps each
+// The zoom/pan engine ported verbatim from the former Mermaid Zoom plugin
+// (fork of xiaozhuang0433/mermaid-zoom). It wraps each
 // rendered Mermaid SVG in a container, freezes geometry on first interaction
 // (engage), and drives wheel/pinch/touch zoom plus a fullscreen modal.
 export class ZoomManager {

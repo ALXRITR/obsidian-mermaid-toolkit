@@ -1,4 +1,4 @@
-import { Editor, MarkdownView, normalizePath, Plugin } from "obsidian";
+import { Editor, MarkdownView, normalizePath, Notice, Plugin } from "obsidian";
 import {
 	DEFAULT_SETTINGS,
 	MermaidToolkitSettings,
@@ -8,12 +8,14 @@ import { IconManager, IconModal } from "./icons";
 import { ZoomManager } from "./zoom";
 import { ThemeManager } from "./theme";
 import { Pipeline } from "./pipeline";
+import { LEGACY_PLUGIN_ID, readLegacySettings } from "./migrate";
 
 const APPEARANCE_STYLE_ID = "mermaid-toolkit-appearance";
 const FONTAWESOME_STYLE_ID = "mermaid-toolkit-fontawesome";
 
-// Mermaid Toolkit = the merged Mermaid Zoom + Mermaid Icons plugin. The manifest
-// id stays `obsidian-mermaid-zoom` for folder / BRAT / settings compatibility.
+// Mermaid Toolkit = the merged Mermaid Zoom + Mermaid Icons plugin. Manifest id
+// `mermaid-toolkit`; it replaces the former id `obsidian-mermaid-zoom`, whose
+// settings are taken over once on first start (see loadSettings).
 export default class MermaidToolkitPlugin extends Plugin {
 	settings: MermaidToolkitSettings = DEFAULT_SETTINGS;
 
@@ -131,7 +133,21 @@ export default class MermaidToolkitPlugin extends Plugin {
 	async loadSettings() {
 		// Object.assign over DEFAULT_SETTINGS: unknown legacy keys (the removed
 		// customContainerCSS / customMermaidCSS / customThemeCSS) are ignored.
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		let data: unknown = await this.loadData();
+		if (data == null) {
+			// First start under the new id: adopt the old plugin's data.json
+			// once. The old folder stays untouched.
+			const legacy = await readLegacySettings(
+				this.app.vault.adapter,
+				this.app.vault.configDir,
+			);
+			if (legacy) {
+				data = legacy;
+				await this.saveData(legacy);
+				new Notice(`Einstellungen aus ${LEGACY_PLUGIN_ID} übernommen`);
+			}
+		}
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
 	}
 
 	async saveSettings() {

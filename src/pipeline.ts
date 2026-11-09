@@ -13,7 +13,7 @@ function inModal(el: Element): boolean {
 // Automatic label contrast: diagrams may bring their own classDef fills.
 // When a node surface is dark, force white label text - inline !important
 // beats the theme's colour rules and survives modal clones and export
-// serialisation. Same YIQ threshold as the uvitas-charts datalabels.
+// serialisation. Same YIQ threshold as the Charts Extension datalabels.
 export function isDarkFill(color: string): boolean {
 	const c = color.trim().toLowerCase();
 	if (!c || c === "none" || c === "transparent") return false;
