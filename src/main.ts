@@ -1,10 +1,11 @@
-import { Editor, MarkdownView, normalizePath, Notice, Plugin } from "obsidian";
+import { Editor, MarkdownView, Notice, Plugin } from "obsidian";
 import {
 	DEFAULT_SETTINGS,
 	MermaidToolkitSettings,
 	MermaidToolkitSettingTab,
 } from "./settings";
-import { IconManager, IconModal } from "./icons";
+import { IconManager, IconModal, iconPackFolders } from "./icons";
+import { firstExisting } from "./vault-paths";
 import { ZoomManager } from "./zoom";
 import { ThemeManager } from "./theme";
 import { Pipeline } from "./pipeline";
@@ -96,8 +97,10 @@ export default class MermaidToolkitPlugin extends Plugin {
 		// reload needed after dropping a new icon into the folder.
 		let packReloadTimer: number | null = null;
 		const onPackChange = (file: { path: string }) => {
-			const folder = this.settings.iconPackFolder;
-			if (!folder || !file.path.startsWith(folder + "/")) return;
+			const inPackFolder = iconPackFolders(this.settings).some((folder) =>
+				file.path.startsWith(folder + "/"),
+			);
+			if (!inPackFolder) return;
 			if (packReloadTimer !== null) window.clearTimeout(packReloadTimer);
 			packReloadTimer = window.setTimeout(() => {
 				packReloadTimer = null;
@@ -233,20 +236,13 @@ export default class MermaidToolkitPlugin extends Plugin {
 
 		const dir = this.manifest.dir;
 		if (!dir) return;
-		const folder = normalizePath(this.settings.iconPackFolder || "");
 		const candidates = [
-			...(folder ? [`${folder}/fontawesome.css`] : []),
+			...iconPackFolders(this.settings).map((f) => `${f}/fontawesome.css`),
 			`${dir}/fontawesome.css`,
 		];
 		try {
 			const adapter = this.app.vault.adapter;
-			let path = "";
-			for (const c of candidates) {
-				if (await adapter.exists(c)) {
-					path = c;
-					break;
-				}
-			}
+			const path = await firstExisting(adapter, candidates);
 			if (!path) {
 				console.warn(
 					`Mermaid Toolkit: fontawesome.css nicht gefunden (gesucht: ${candidates.join(", ")}).`,

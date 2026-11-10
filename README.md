@@ -27,13 +27,17 @@ pan, icons inside node labels, and a vault-driven theme loader.
 - **Label icons** - `logos:*`, `lucide:*`, `clarity:*`, custom SVG packs and
   Font Awesome (`fa:*`) rendered inside node/edge labels
 - **Custom packs** - drop SVGs into a configurable vault folder
-  (default `_ADMIN/mermaid-icon-packs`), one pack per subfolder
+  (empty = first existing of `_system/daten/mermaid-icon-packs`,
+  `_ADMIN/mermaid-icon-packs`), one pack per subfolder
 - **Insert-icon command** + inline `<code>` preview in the editor
 - **Configurable icon colour** via `--mermaid-label-icon-color`
 
 ### Theme loader
 - Load a Mermaid style CSS straight from the vault
   (`DGUV` / `uvitas` / custom path), injected for on-screen diagrams
+- `DGUV` / `uvitas` read `style-dguv.css` / `style-uvitas.css` from the
+  styles folder setting (empty = first existing of `_system/styles`,
+  `_ADMIN/styles`)
 - Live-reloads when the style file is edited
 
 ## Architecture

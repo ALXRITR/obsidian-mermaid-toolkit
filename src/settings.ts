@@ -1,5 +1,6 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type MermaidToolkitPlugin from "./main";
+import { DEFAULT_ICON_PACK_FOLDERS, DEFAULT_STYLE_FOLDERS } from "./vault-paths";
 
 export type ThemeMode = "aus" | "dguv" | "uvitas" | "custom";
 
@@ -17,7 +18,10 @@ export interface MermaidToolkitSettings {
 	// --- Theme ---
 	themeMode: ThemeMode;
 	customThemePath: string;
+	// Folder of style-dguv.css / style-uvitas.css; "" = default folders in order.
+	stylesFolder: string;
 	// --- Icons ---
+	// Icon-pack folder; "" = default folders in order.
 	iconPackFolder: string;
 	iconColor: string; // drives --mermaid-label-icon-color
 	loadFontAwesome: boolean;
@@ -35,7 +39,8 @@ export const DEFAULT_SETTINGS: MermaidToolkitSettings = {
 	containerBorderHover: "1px solid var(--background-modifier-border)",
 	themeMode: "aus",
 	customThemePath: "",
-	iconPackFolder: "_ADMIN/mermaid-icon-packs",
+	stylesFolder: "",
+	iconPackFolder: "",
 	iconColor: "#004994",
 	loadFontAwesome: true,
 };
@@ -187,7 +192,7 @@ export class MermaidToolkitSettingTab extends PluginSettingTab {
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("_ADMIN/styles/mein-theme.css")
+					.setPlaceholder(`${DEFAULT_STYLE_FOLDERS[0]}/mein-theme.css`)
 					.setValue(this.plugin.settings.customThemePath)
 					.onChange(async (value) => {
 						this.plugin.settings.customThemePath = value;
@@ -195,14 +200,10 @@ export class MermaidToolkitSettingTab extends PluginSettingTab {
 					}),
 			);
 
-		const updateThemePathVisibility = (mode: ThemeMode) => {
-			themePathSetting.settingEl.toggle(mode === "custom");
-		};
-
 		new Setting(containerEl)
 			.setName("Diagramm-Theme")
 			.setDesc(
-				"Lädt eine Style-CSS aus dem Vault und injiziert sie für Mermaid-Diagramme. DGUV/uvitas nutzen _ADMIN/styles/style-dguv.css bzw. style-uvitas.css.",
+				"Lädt eine Style-CSS aus dem Vault und injiziert sie für Mermaid-Diagramme. DGUV/uvitas nutzen style-dguv.css bzw. style-uvitas.css aus dem Ordner der Stile.",
 			)
 			.addDropdown((dropdown) => {
 				dropdown.addOption("aus", "Aus");
@@ -217,6 +218,28 @@ export class MermaidToolkitSettingTab extends PluginSettingTab {
 				});
 			});
 
+		// DGUV and uvitas read their style file from this folder.
+		const stylesFolderSetting = new Setting(containerEl)
+			.setName("Ordner der Stile")
+			.setDesc(
+				"Vault-Ordner mit style-dguv.css und style-uvitas.css. " +
+					`Leer: sucht der Reihe nach in ${DEFAULT_STYLE_FOLDERS.join(", dann in ")}.`,
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder(DEFAULT_STYLE_FOLDERS[0])
+					.setValue(this.plugin.settings.stylesFolder)
+					.onChange(async (value) => {
+						this.plugin.settings.stylesFolder = value.trim();
+						await this.plugin.saveSettings();
+					}),
+			);
+
+		const updateThemePathVisibility = (mode: ThemeMode) => {
+			themePathSetting.settingEl.toggle(mode === "custom");
+			stylesFolderSetting.settingEl.toggle(mode === "dguv" || mode === "uvitas");
+		};
+
 		updateThemePathVisibility(this.plugin.settings.themeMode);
 
 		// --- Icons ---
@@ -225,15 +248,15 @@ export class MermaidToolkitSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Ordner für eigene Icon-Packs")
 			.setDesc(
-				"Vault-Ordner, dessen direkte Unterordner als Icon-Packs geladen werden (ein Pack pro Unterordner, ein Icon pro .svg-Datei).",
+				"Vault-Ordner, dessen direkte Unterordner als Icon-Packs geladen werden (ein Pack pro Unterordner, ein Icon pro .svg-Datei). " +
+					`Leer: sucht der Reihe nach in ${DEFAULT_ICON_PACK_FOLDERS.join(", dann in ")}.`,
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder(DEFAULT_SETTINGS.iconPackFolder)
+					.setPlaceholder(DEFAULT_ICON_PACK_FOLDERS[0])
 					.setValue(this.plugin.settings.iconPackFolder)
 					.onChange(async (value) => {
-						this.plugin.settings.iconPackFolder =
-							value || DEFAULT_SETTINGS.iconPackFolder;
+						this.plugin.settings.iconPackFolder = value.trim();
 						await this.plugin.saveSettings();
 					}),
 			);

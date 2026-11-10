@@ -1,17 +1,25 @@
 import { loadMermaid, normalizePath, TAbstractFile } from "obsidian";
 import type MermaidToolkitPlugin from "./main";
+import {
+	cleanVaultPath,
+	DEFAULT_STYLE_FOLDERS,
+	firstExisting,
+	folderCandidates,
+	STYLE_FILES,
+} from "./vault-paths";
 
 const THEME_STYLE_ID = "mermaid-toolkit-theme";
-const DGUV_PATH = "_ADMIN/styles/style-dguv.css";
-const UVITAS_PATH = "_ADMIN/styles/style-uvitas.css";
 
 // Loads a Mermaid style CSS file from the vault and injects it as a <style>.
-// Watches the resolved file for live-reload while editing. The concrete files
-// (style-dguv.css / style-uvitas.css) are created in Phase 3 - a missing file
-// only warns and injects nothing.
+// Watches the candidate files for live-reload while editing. DGUV/uvitas read
+// style-dguv.css / style-uvitas.css from the styles folder (setting, or the
+// default folders in order) - a missing file only warns and injects nothing.
 export class ThemeManager {
 	private readonly plugin: MermaidToolkitPlugin;
 	private styleEl?: HTMLStyleElement;
+	// Paths searched by the last apply(); the watcher re-applies when one of
+	// them is edited.
+	private watched: string[] = [];
 
 	constructor(plugin: MermaidToolkitPlugin) {
 		this.plugin = plugin;
@@ -22,47 +30,59 @@ export class ThemeManager {
 	setupWatch() {
 		this.plugin.registerEvent(
 			this.plugin.app.vault.on("modify", (file: TAbstractFile) => {
-				const active = this.resolvePath();
-				if (active && file.path === active) {
+				if (this.watched.includes(file.path)) {
 					void this.apply();
 				}
 			}),
 		);
 	}
 
-	// Vault-relative path of the currently selected theme, or null when off.
-	private resolvePath(): string | null {
+	// Vault-relative paths of the selected theme in search order; empty when off.
+	private candidates(): string[] {
 		const s = this.plugin.settings;
 		switch (s.themeMode) {
 			case "dguv":
-				return normalizePath(DGUV_PATH);
-			case "uvitas":
-				return normalizePath(UVITAS_PATH);
-			case "custom":
-				return s.customThemePath ? normalizePath(s.customThemePath) : null;
+			case "uvitas": {
+				const file = STYLE_FILES[s.themeMode];
+				return folderCandidates(s.stylesFolder, DEFAULT_STYLE_FOLDERS).map(
+					(folder) => normalizePath(`${folder}/${file}`),
+				);
+			}
+			case "custom": {
+				const path = cleanVaultPath(s.customThemePath);
+				return path ? [normalizePath(path)] : [];
+			}
 			default:
-				return null;
+				return [];
 		}
 	}
 
 	async apply() {
-		const path = this.resolvePath();
-		if (!path) {
+		const candidates = this.candidates();
+		this.watched = candidates;
+		if (candidates.length === 0) {
 			this.remove();
 			return;
 		}
 
 		const adapter = this.plugin.app.vault.adapter;
 		let css: string;
+		let path: string | null = null;
 		try {
-			if (!(await adapter.exists(path))) {
-				console.warn(`Mermaid Toolkit: Theme-Datei fehlt: ${path}`);
+			path = await firstExisting(adapter, candidates);
+			if (!path) {
+				console.warn(
+					`Mermaid Toolkit: Theme-Datei fehlt (gesucht: ${candidates.join(", ")})`,
+				);
 				this.remove();
 				return;
 			}
 			css = await adapter.read(path);
 		} catch (e) {
-			console.warn(`Mermaid Toolkit: Theme-Datei nicht lesbar: ${path}`, e);
+			console.warn(
+				`Mermaid Toolkit: Theme-Datei nicht lesbar: ${path ?? candidates.join(", ")}`,
+				e,
+			);
 			this.remove();
 			return;
 		}

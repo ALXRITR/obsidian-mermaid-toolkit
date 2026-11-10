@@ -7,6 +7,14 @@ import {
 	Notice,
 } from "obsidian";
 import type { MermaidToolkitSettings } from "./settings";
+import { DEFAULT_ICON_PACK_FOLDERS, firstExisting, folderCandidates } from "./vault-paths";
+
+// Icon-pack folders to search, in order: the set folder, or the defaults.
+export function iconPackFolders(settings: MermaidToolkitSettings): string[] {
+	return folderCandidates(settings.iconPackFolder, DEFAULT_ICON_PACK_FOLDERS).map((f) =>
+		normalizePath(f),
+	);
+}
 
 export interface IconifyIcon {
 	body: string;
@@ -131,20 +139,13 @@ export class IconManager {
 		// hand-picked SVG packs (vault) keep working. A copy in the configured
 		// icon-pack folder rides along with whatever syncs the vault and is
 		// therefore the same on all machines.
-		const vaultFolder = normalizePath(this.getSettings().iconPackFolder || "");
 		const candidates = [
-			...(vaultFolder ? [`${vaultFolder}/${name}.json`] : []),
+			...iconPackFolders(this.getSettings()).map((f) => `${f}/${name}.json`),
 			`${this.pluginDir}/packs/${name}.json`,
 		];
 		try {
 			const adapter = this.app.vault.adapter;
-			let path = "";
-			for (const c of candidates) {
-				if (await adapter.exists(c)) {
-					path = c;
-					break;
-				}
-			}
+			const path = await firstExisting(adapter, candidates);
 			if (!path) {
 				console.warn(
 					`Mermaid Toolkit: Icon-Pack „${name}" nicht gefunden (gesucht: ${candidates.join(
@@ -197,20 +198,21 @@ export class IconManager {
 
 	// --- Custom icon pack loading ---
 
-	// Scan the configured vault folder; every direct subfolder becomes a pack
-	// named after the folder, with one icon per `.svg` file.
-	async loadCustomPacks(folder: string = this.getSettings().iconPackFolder) {
+	// Scan the icon-pack folder (the first existing candidate); every direct
+	// subfolder becomes a pack named after the folder, with one icon per `.svg`
+	// file.
+	async loadCustomPacks() {
 		this.customPacks = [];
 		// Read straight from the filesystem via the adapter - Obsidian's
 		// getFiles() index does not expose externally-created .svg files
 		// reliably. NFC-normalise names for umlaut-safe comparisons.
 		const adapter = this.app.vault.adapter;
-		const base = normalizePath(folder);
 		const packs: Record<string, Record<string, IconifyIcon>> = {};
 		let totalSvg = 0;
 
 		try {
-			if (await adapter.exists(base)) {
+			const base = await firstExisting(adapter, iconPackFolders(this.getSettings()));
+			if (base) {
 				const root = await adapter.list(base);
 				for (const packPath of root.folders) {
 					const packName = (packPath.split("/").pop() || "").normalize("NFC");
