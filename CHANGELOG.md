@@ -1,6 +1,12 @@
 # Changelog
 
-## Unveröffentlicht
+## 2.1.6 – 18.11.2026
+
+- Obsidian 1.15 zeigt Icons aus Vault-Packs und Iconify-Packs in Pele-Beschriftungen und Icon-Knoten. Die Icons bleiben beim PDF-Export erhalten.
+- Die Themes uvitas und DGUV verwenden ihre Vault-Farben auch für Pele-Knoten, Entscheidungen und Pfeile.
+- Nach einer Größenänderung arbeiten Zoom und Vollbild mit dem neu gezeichneten Diagramm. Diagramme werden auch bei einem Export im Hintergrund verarbeitet.
+
+## Frühere Änderungen
 
 - Neue Einstellung „Ordner der Stile“ im Bereich Theme (bei Diagramm-Theme DGUV oder uvitas). Sie gibt den Vault-Ordner mit `style-dguv.css` und `style-uvitas.css` an.
 - Ist das Feld leer, sucht das Plugin der Reihe nach in `_system/styles` und `_ADMIN/styles`. Vaults mit dem bisherigen Ordner `_ADMIN/styles` laufen ohne Eingriff weiter. Ist das Feld gesetzt, gilt nur dieser Ordner.

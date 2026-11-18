@@ -6,6 +6,7 @@ import {
 	normalizePath,
 	Notice,
 } from "obsidian";
+import { renderPeleIcons } from "./pele";
 import type { MermaidToolkitSettings } from "./settings";
 import { DEFAULT_ICON_PACK_FOLDERS, firstExisting, folderCandidates } from "./vault-paths";
 
@@ -40,7 +41,7 @@ export interface IconifyJSON {
 }
 
 interface Mermaid {
-	registerIconPacks: (
+	registerIconPacks?: (
 		packs: Array<
 			| { name: string; icons: unknown }
 			| { name: string; loader: () => Promise<unknown> }
@@ -179,7 +180,7 @@ export class IconManager {
 	async registerWithMermaid() {
 		try {
 			const mermaid = (await loadMermaid()) as Mermaid;
-			mermaid.registerIconPacks([
+			mermaid.registerIconPacks?.([
 				...this.customPacks.map((p) => ({ name: p.name, icons: p.icons })),
 				...LAZY_PACK_NAMES.filter(
 					(n) => !this.customPacks.some((p) => p.name === n),
@@ -419,13 +420,11 @@ export class IconManager {
 		const prefixes = this.knownPrefixes()
 			.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
 			.join("|");
-		return new RegExp(`(${prefixes}):([\\w-]+)`, "g");
+		return new RegExp(`(${prefixes}):([\\p{L}\\p{N}_-]+)`, "gu");
 	}
 
-	// Build an <img> with a data-URI SVG. An <img> is not a <path>, so Mermaid's
-	// `.node path { fill }` colouring can't repaint it, and the SVG renders in an
-	// isolated context with its original colours. Sizing via CSS .mermaid-label-icon.
-	buildIconElement(prefix: string, name: string, color: string): Element | null {
+	// Isolate the artwork so the diagram's path styling cannot recolor a logo.
+	private iconSource(prefix: string, name: string, color: string): string | null {
 		const iconData = this.getIconData(prefix, name);
 		if (!iconData || !iconData.body) return null;
 
@@ -448,9 +447,16 @@ export class IconManager {
 		const colorStyle = color ? ` style="color:${color}"` : "";
 		const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="${viewBox}"${colorStyle} preserveAspectRatio="xMidYMid meet">${iconData.body}</svg>`;
 
+		return "data:image/svg+xml," + encodeURIComponent(svgStr);
+	}
+
+	buildIconElement(prefix: string, name: string, color: string): Element | null {
+		const src = this.iconSource(prefix, name, color);
+		if (!src) return null;
+
 		const img = document.createElement("img");
 		img.addClass("mermaid-label-icon");
-		img.src = "data:image/svg+xml," + encodeURIComponent(svgStr);
+		img.src = src;
 		// MUST stay empty: caption plugins (e.g. wk-image-caption) turn any
 		// non-empty alt into a caption <div> INSIDE the mermaid label, which
 		// our pipeline observer answers with an icon re-render - an endless
@@ -585,6 +591,30 @@ export class IconManager {
 	// Render icon tokens in Mermaid labels found under `root` (.nodeLabel /
 	// .edgeLabel are Mermaid-only classes, so this never touches other content).
 	processLabels(root: ParentNode) {
+		const tokens = this.iconTokenRegex();
+		// Pele reserves the geometry for an icon shape even when Obsidian
+		// does not supply the pack. Leave unknown/native shapes intact.
+		root.querySelectorAll<SVGSVGElement>("svg.pele svg.pele-icon[data-icon]").forEach((shape) => {
+			const token = shape.getAttribute("data-icon")!;
+			const match = Array.from(token.matchAll(tokens))[0];
+			if (!match || match[0] !== token) return;
+			const label = shape.parentElement?.querySelector("text");
+			const style = getComputedStyle(label ?? shape);
+			const src = this.iconSource(match[1], match[2],
+				style.getPropertyValue("--mermaid-label-icon-color").trim() || style.color);
+			if (!src) return;
+			const image = shape.ownerDocument.createElementNS("http://www.w3.org/2000/svg", "image");
+			for (const attr of ["class", "x", "y", "width", "height", "transform", "aria-label"]) {
+				if (shape.hasAttribute(attr)) image.setAttribute(attr, shape.getAttribute(attr)!);
+			}
+			image.setAttribute("href", src);
+			image.setAttribute("data-mermaid-icon", token);
+			shape.replaceWith(image);
+		});
+		root.querySelectorAll<SVGTextElement>("svg.pele text").forEach((label) => {
+			if (!(label.textContent || "").includes(":")) return;
+			renderPeleIcons(label, tokens, (prefix, name, color) => this.iconSource(prefix, name, color));
+		});
 		root
 			.querySelectorAll<HTMLElement>(".nodeLabel, .edgeLabel")
 			.forEach((el) => this.processLabel(el));

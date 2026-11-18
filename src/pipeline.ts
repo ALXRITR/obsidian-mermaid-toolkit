@@ -2,7 +2,8 @@ import type MermaidToolkitPlugin from "./main";
 import type { IconManager } from "./icons";
 import type { ZoomManager } from "./zoom";
 
-const MERMAID_SVG_SELECTOR = '.mermaid svg, svg[id^="mermaid-"]';
+// Pele also mounts SVG icons inside its native zoom controls.
+const MERMAID_SVG_SELECTOR = ':is(.mermaid svg, svg[id^="mermaid-"]):not(svg svg, button svg, .pele-zoom svg)';
 
 // The fullscreen modal shows a CLONE of an already-wrapped diagram; it must
 // never be re-processed (re-wrapping the clone breaks the modal layout).
@@ -221,9 +222,6 @@ export class Pipeline {
 					.forEach((s) => {
 						if (!inModal(s)) this.pendingNew.add(s);
 					});
-				if (node instanceof SVGSVGElement && node.closest(".mermaid") && !inModal(node)) {
-					this.pendingNew.add(node);
-				}
 
 				// Something changed inside an already-wrapped diagram (e.g. a
 				// live-preview re-render or late icon shape): mark its svg for a
@@ -253,7 +251,8 @@ export class Pipeline {
 		// short delay lets subgraph bounds settle before we measure/wrap.
 		this.flushTimer = window.setTimeout(() => {
 			this.flushTimer = null;
-			requestAnimationFrame(() => this.flush());
+			// Background exports can run while animation frames are suspended.
+			this.flush();
 		}, 50);
 	}
 
@@ -277,9 +276,7 @@ export class Pipeline {
 				// (1b) Contrast pass: white labels on dark custom node fills.
 				applyLabelContrast(svg);
 				// (2)+(3) Measure + wrap (wrap freezes geometry lazily on engage).
-				if (!this.zoom.hasZoomContainer(svg)) {
-					this.zoom.wrap(svg);
-				}
+				this.zoom.wrap(svg);
 				this.processed.add(svg);
 			}
 
@@ -290,6 +287,7 @@ export class Pipeline {
 				// drop to native and re-run icons so the next engage re-measures.
 				const wasEngaged = this.zoom.disengageSvg(svg);
 				if (wasEngaged) this.icons.rescanLabels(svg);
+				else this.icons.processLabels(svg);
 			}
 		} finally {
 			this.observer?.observe(document.body, { childList: true, subtree: true });

@@ -24,8 +24,12 @@ pan, icons inside node labels, and a vault-driven theme loader.
 - **Fullscreen Mode** - Open diagrams in a modal for better viewing
 
 ### Icons (merged from mermaid-icons)
-- **Label icons** - `logos:*`, `lucide:*`, `clarity:*`, custom SVG packs and
-  Font Awesome (`fa:*`) rendered inside node/edge labels
+- **Label icons** - use `phosphor:*`, `lucide:*`, `clarity:*`, `logos:*` or a vault SVG pack in a label.
+  Obsidian 1.15+ uses Pele. Toolkit embeds each resolved icon as SVG artwork
+  for reading view, fullscreen and PDF export. It also fills Pele icon shapes
+  such as `A@{ icon: "phosphor:user", label: "Person" }`.
+  Legacy Mermaid HTML labels continue to support Font Awesome's `fa:` syntax.
+  Use a pack token in Pele labels because Pele can omit `fa:` text before post-processing.
 - **Custom packs** - drop SVGs into a configurable vault folder
   (empty = first existing of `_system/daten/mermaid-icon-packs`,
   `_ADMIN/mermaid-icon-packs`), one pack per subfolder
@@ -39,6 +43,13 @@ pan, icons inside node labels, and a vault-driven theme loader.
   styles folder setting (empty = first existing of `_system/styles`,
   `_ADMIN/styles`)
 - Live-reloads when the style file is edited
+- With Pele, the DGUV and uvitas themes use the vault's node, decision, arrow
+  and label colors. Mark emphasized nodes with `:::primary` or `:::accent`.
+
+```mermaid
+flowchart LR
+    A["phosphor:user-plus<br/>Einladung"] --> B["phosphor:user<br/>Konto"]:::primary
+```
 
 ## Architecture
 

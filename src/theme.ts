@@ -1,4 +1,5 @@
 import { loadMermaid, normalizePath, TAbstractFile } from "obsidian";
+import { PELE_VAULT_THEME } from "./pele";
 import type MermaidToolkitPlugin from "./main";
 import {
 	cleanVaultPath,
@@ -92,7 +93,8 @@ export class ThemeManager {
 			this.styleEl.id = THEME_STYLE_ID;
 			document.head.appendChild(this.styleEl);
 		}
-		this.styleEl.textContent = css;
+		const mode = this.plugin.settings.themeMode;
+		this.styleEl.textContent = mode === "uvitas" || mode === "dguv" ? css + PELE_VAULT_THEME : css;
 		void this.syncMermaidConfig();
 	}
 

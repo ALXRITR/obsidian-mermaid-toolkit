@@ -73,9 +73,8 @@ export class ZoomManager {
 	}
 
 	hasZoomContainer(svg: SVGSVGElement): boolean {
-		const mermaidContainer = svg.closest(".mermaid");
-		const parent = mermaidContainer?.parentElement || svg.parentElement;
-		return parent?.hasClass("mermaid-zoom-content") ?? false;
+		const parent = (svg.closest(".mermaid") ?? svg).parentElement;
+		return parent?.classList.contains("mermaid-zoom-content") ?? false;
 	}
 
 	// Disengage any wrapped-and-engaged diagram for this svg (used by the
@@ -101,13 +100,21 @@ export class ZoomManager {
 
 	wrap(svg: SVGSVGElement): boolean {
 		if (!svg.parentElement) return false;
-		if (this.hasZoomContainer(svg)) return false;
-
 		const mermaidContainer = svg.closest(".mermaid") as HTMLElement;
 		const targetParent = mermaidContainer?.parentElement || svg.parentElement;
 		const targetElement = mermaidContainer || svg;
 
 		if (!targetParent) return false;
+		if (this.hasZoomContainer(svg)) {
+			// Pele replaces the SVG on resize. The existing controls and
+			// fullscreen clone must now work on the new drawing.
+			const state = this.zoomStates.get(targetParent);
+			if (state && state.svg !== svg) {
+				if (state.engaged) this.disengage(targetParent, state);
+				state.svg = svg;
+			}
+			return false;
+		}
 
 		// Native at rest: do NOT touch the svg here. Geometry is only frozen once
 		// the user actually zooms/pans (ensureEngaged).
@@ -891,7 +898,7 @@ export class ZoomManager {
 					this.updateTransform(contentWrapper, state);
 				}
 			},
-			{ passive: false },
+			{ passive: false, capture: true },
 		);
 	}
 

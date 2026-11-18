@@ -209,7 +209,7 @@ export default class MermaidToolkitPlugin extends Plugin {
 		// Icon colour drives the CSS var read by the label renderer (overrides the
 		// #004994 default shipped in styles.css). White stays on primary nodes.
 		if (s.iconColor.trim()) {
-			parts.push(`.mermaid .nodeLabel { --mermaid-label-icon-color: ${s.iconColor}; }`);
+			parts.push(`.mermaid :is(.nodeLabel, .pele-label) { --mermaid-label-icon-color: ${s.iconColor}; }`);
 			parts.push(
 				`.mermaid .node.primary .nodeLabel { --mermaid-label-icon-color: #ffffff; }`,
 			);

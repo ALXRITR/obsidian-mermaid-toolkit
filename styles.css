@@ -171,3 +171,8 @@ img.mermaid-label-icon {
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+
+/* A wrapped diagram already has the toolkit's zoom controls. */
+.mermaid-zoom-container .pele-zoom {
+	display: none;
+}
