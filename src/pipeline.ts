@@ -1,5 +1,6 @@
 import type MermaidToolkitPlugin from "./main";
 import type { IconManager } from "./icons";
+import { maskPeleEdgeLabels } from "./pele";
 import type { ZoomManager } from "./zoom";
 
 // Pele also mounts SVG icons inside its native zoom controls.
@@ -111,6 +112,8 @@ export function fitViewBox(svg: SVGSVGElement) {
 }
 
 export function applyLabelContrast(svg: SVGSVGElement) {
+	const themedPele = svg.classList.contains("pele") &&
+		getComputedStyle(svg).getPropertyValue("--mermaid-themed-pele").trim() === "1";
 	svg.querySelectorAll<SVGGElement>("g.node").forEach((node) => {
 		const shape = node.querySelector<SVGGraphicsElement>(
 			"rect, polygon, circle, ellipse, path",
@@ -126,6 +129,11 @@ export function applyLabelContrast(svg: SVGSVGElement) {
 	// their own label colour.
 	svg.querySelectorAll<SVGGElement>("g").forEach((g) => {
 		if (g.classList.contains("node") || g.closest("g.node")) return;
+		// These native surfaces follow live theme variables. A fixed white
+		// override would survive cloning from a dark pane onto a light slide.
+		const surface = g.firstElementChild as SVGElement | null;
+		if (themedPele && g.matches(".pele-edge-label, .pele-node, .pele-cluster") &&
+			surface?.getAttribute("fill")?.startsWith("var(") && !surface.style.fill) return;
 		const kids = Array.from(g.children);
 		const shape = kids.find(isAreaShape) as SVGGraphicsElement | undefined;
 		if (!shape || !isDarkFill(getComputedStyle(shape).fill)) return;
@@ -268,6 +276,7 @@ export class Pipeline {
 		try {
 			for (const svg of newSvgs) {
 				if (!svg.isConnected) continue;
+				maskPeleEdgeLabels(svg);
 				// (1) Icons first, so node boxes grow before geometry is measured.
 				this.icons.processLabels(svg);
 				// (1a) Icons made the node boxes wider than mermaid planned for -

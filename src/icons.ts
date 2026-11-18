@@ -612,12 +612,36 @@ export class IconManager {
 			shape.replaceWith(image);
 		});
 		root.querySelectorAll<SVGTextElement>("svg.pele text").forEach((label) => {
+			// Open panes can still contain slots made by an earlier plugin version.
+			for (const slot of Array.from(label.querySelectorAll<SVGTSpanElement>("tspan[data-mermaid-icon-slot]"))) {
+				if (!slot.style.fontSize) slot.replaceWith(slot.getAttribute("data-mermaid-icon-slot")!);
+			}
 			if (!(label.textContent || "").includes(":")) return;
 			renderPeleIcons(label, tokens, (prefix, name, color) => this.iconSource(prefix, name, color));
 		});
+		this.refreshPeleColors(root);
 		root
 			.querySelectorAll<HTMLElement>(".nodeLabel, .edgeLabel")
 			.forEach((el) => this.processLabel(el));
+	}
+
+	// Data-URI images isolate the artwork from Mermaid's path CSS, so their
+	// currentColor must be refreshed when the surrounding palette changes.
+	refreshPeleColors(root: ParentNode = document.body) {
+		for (const image of Array.from(root.querySelectorAll<SVGImageElement>("svg.pele image[data-mermaid-icon]"))) {
+			const group = image.parentElement;
+			const label = group?.classList.contains("mermaid-pele-icons")
+				? group.previousElementSibling : group?.querySelector("text");
+			const style = getComputedStyle(label ?? image);
+			const color = style.getPropertyValue("--mermaid-label-icon-color").trim() || style.fill;
+			if (image.dataset.mermaidIconColor === color) continue;
+			const [prefix, name] = image.dataset.mermaidIcon!.split(":");
+			const src = this.iconSource(prefix, name, color);
+			if (src) {
+				image.setAttribute("href", src);
+				image.dataset.mermaidIconColor = color;
+			}
+		}
 	}
 
 	// Clear the processed flags under `root` (or the whole document) and

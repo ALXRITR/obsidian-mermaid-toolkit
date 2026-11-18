@@ -95,6 +95,7 @@ export class ThemeManager {
 		}
 		const mode = this.plugin.settings.themeMode;
 		this.styleEl.textContent = mode === "uvitas" || mode === "dguv" ? css + PELE_VAULT_THEME : css;
+		this.plugin.icons.refreshPeleColors();
 		void this.syncMermaidConfig();
 	}
 

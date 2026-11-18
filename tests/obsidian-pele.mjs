@@ -56,6 +56,25 @@ async function checkDiagrams() {
 				[node("B").querySelector("polygon"), "--mm-decision"],
 				[node("C").querySelector("rect"), "--mm-accent"]]
 				.every(([el, token]) => getComputedStyle(el).fill === expected(token));
+			const edge = root.querySelector(".pele-edge-label > rect");
+			const mask = root.querySelector("mask");
+			result.edgeGap = getComputedStyle(edge).fill === "none" &&
+				getComputedStyle(root.querySelector(".pele-edges")).maskImage.includes(mask.id) &&
+				mask.children.length === 1 + root.querySelectorAll(".pele-edge-label > rect").length;
+			const slot = node("A").querySelector("[data-mermaid-icon-slot]");
+			const image = node("A").querySelector("image");
+			result.iconSize = Math.abs(image.getBBox().width - parseFloat(getComputedStyle(slot).fontSize)) < 1 &&
+				image.getBBox().width > parseFloat(getComputedStyle(node("A").querySelector("text")).fontSize);
+			host.classList.add("uvitas-render-sandbox");
+			plugin.icons.refreshPeleColors(root);
+			const palette = getComputedStyle(document.documentElement);
+			const colors = getComputedStyle(root);
+			result.paper = ["canvas", "node", "text", "icon"].every(key =>
+				colors.getPropertyValue("--mm-" + key).trim() === palette.getPropertyValue("--mm-" + key).trim());
+			const icon = node("C").querySelector("image");
+			result.paperIcon = decodeURIComponent(icon.getAttribute("href")).includes(
+				'style="color:' + colors.getPropertyValue("--mm-icon").trim() + '"');
+			host.classList.remove("uvitas-render-sandbox");
 		}
 		// A responsive redraw swaps the SVG under the same zoom controls.
 		const replacement = (await window.mermaid.render("toolkit-resize", 'flowchart LR\n A["phosphor:user Neu"]')).svg;
@@ -83,4 +102,6 @@ assert.equal(actual.unknown, "phosphor:toolkit-unknown");
 assert.equal(actual.legacy, 1);
 assert.equal(actual.zoom, true);
 assert.equal(actual.redrawZoom, true);
-if ("theme" in actual) assert.equal(actual.theme, true);
+if ("theme" in actual) {
+	for (const key of ["theme", "edgeGap", "iconSize", "paper", "paperIcon"]) assert.equal(actual[key], true, key);
+}

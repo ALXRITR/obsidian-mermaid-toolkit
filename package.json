@@ -1,6 +1,6 @@
 {
   "name": "mermaid-toolkit",
-  "version": "2.1.7",
+  "version": "2.1.8",
   "description": "Mermaid Toolkit: zoom & pan + label icons + theme loader for Obsidian",
   "scripts": {
     "dev": "node esbuild.config.mjs",

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.8 – 18.11.2026
+
+- Bei uvitas und DGUV unterbrechen beschriftete Verbindungen die Linie unter dem Text. Der Hintergrund des Diagramms oder der Gruppe bleibt sichtbar.
+- Die Icons in Pele-Beschriftungen verwenden die Größe des Designs. Ihre Farbe folgt dem hellen oder dunklen Lesemodus.
+- PDF-Handouts verwenden die helle Diagrammpalette auch dann, wenn Obsidian im dunklen Modus läuft. Das gilt auch für die Vorschau.
+
 ## 2.1.7 – 18.11.2026
 
 - Zoom und Vollbild erfassen die neue Zeichnung auch dann, wenn man direkt nach einer Größenänderung klickt und das Toolkit noch auf die Meldung von Pele wartet.

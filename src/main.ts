@@ -56,6 +56,7 @@ export default class MermaidToolkitPlugin extends Plugin {
 
 		// Single processing pipeline (icons -> measure -> wrap).
 		this.pipeline.start();
+		this.registerEvent(this.app.workspace.on("css-change", () => this.icons.refreshPeleColors()));
 
 		// Inline <code> icon preview in the editor.
 		this.registerMarkdownPostProcessor((element) => {
