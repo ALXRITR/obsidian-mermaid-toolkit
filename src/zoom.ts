@@ -109,10 +109,7 @@ export class ZoomManager {
 			// Pele replaces the SVG on resize. The existing controls and
 			// fullscreen clone must now work on the new drawing.
 			const state = this.zoomStates.get(targetParent);
-			if (state && state.svg !== svg) {
-				if (state.engaged) this.disengage(targetParent, state);
-				state.svg = svg;
-			}
+			if (state) this.followRedraw(targetParent, state);
 			return false;
 		}
 
@@ -375,8 +372,19 @@ export class ZoomManager {
 		svg.style.overflow = "visible";
 	}
 
+	// A click can arrive after Pele swaps the SVG and before the debounced
+	// observer runs. Only look up the replacement if the old drawing is gone.
+	private followRedraw(contentWrapper: HTMLElement, state: ZoomState) {
+		if (contentWrapper.contains(state.svg)) return;
+		const svg = contentWrapper.querySelector<SVGSVGElement>("svg:not(button svg, .pele-zoom svg)");
+		if (!svg) return;
+		if (state.engaged) this.disengage(contentWrapper, state);
+		state.svg = svg;
+	}
+
 	// Freeze the current native geometry so transforms have a stable baseline.
 	private ensureEngaged(contentWrapper: HTMLElement, state: ZoomState) {
+		this.followRedraw(contentWrapper, state);
 		if (state.engaged) return;
 		const container = state.container;
 		const svg = state.svg;
@@ -754,6 +762,7 @@ export class ZoomManager {
 		this.styleButton(fullscreenBtn);
 		fullscreenBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
+			this.followRedraw(contentWrapper, state);
 			this.openFullscreenModal(state);
 		});
 

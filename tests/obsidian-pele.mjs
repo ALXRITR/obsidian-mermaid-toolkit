@@ -60,9 +60,7 @@ async function checkDiagrams() {
 		// A responsive redraw swaps the SVG under the same zoom controls.
 		const replacement = (await window.mermaid.render("toolkit-resize", 'flowchart LR\n A["phosphor:user Neu"]')).svg;
 		block.innerHTML = replacement;
-		for (let tries = 0; tries < 100 && !block.querySelector("image"); tries++) {
-			await new Promise(resolve => setTimeout(resolve, 50));
-		}
+		// Click immediately, before the observer receives the replacement.
 		const wrap = block.closest(".mermaid-zoom-container");
 		wrap.querySelector(".mermaid-zoom-btn").click();
 		result.redrawZoom = wrap.classList.contains("is-engaged") && block.querySelector("svg").style.maxWidth === "none";

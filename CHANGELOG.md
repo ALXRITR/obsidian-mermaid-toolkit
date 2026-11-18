@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.7 – 18.11.2026
+
+- Zoom und Vollbild erfassen die neue Zeichnung auch dann, wenn man direkt nach einer Größenänderung klickt und das Toolkit noch auf die Meldung von Pele wartet.
+
 ## 2.1.6 – 18.11.2026
 
 - Obsidian 1.15 zeigt Icons aus Vault-Packs und Iconify-Packs in Pele-Beschriftungen und Icon-Knoten. Die Icons bleiben beim PDF-Export erhalten.
